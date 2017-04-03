@@ -1,0 +1,7 @@
+argc = 6
+argv[0]: ./test_xmerge
+argv[1]: -ces
+argv[2]: out.txt
+argv[3]: in1.txt
+argv[4]: in2.txt
+argv[5]: in3.txt

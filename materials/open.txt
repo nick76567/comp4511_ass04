@@ -1,0 +1,9 @@
+1. O_CREATE without mode, the persmission of the file will be undefined.
+
+2. using open("test.txt", O_CREAT|O_RDWR, S_IRUSR|S_IWUSR) twice:
+	It overwrites the orignal file.
+		if the write_size_2 < write_size_1
+			&& the buffer_nr_full_2 < buffer_nr_full_1
+				we can see part of the buffer1 content in the file
+
+3. O_APPEDN AND O_TRUNC can be used together but meaningless

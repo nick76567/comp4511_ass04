@@ -1,0 +1,2 @@
+1. strsep(...)
+	It will move the pointer of the passed char array.

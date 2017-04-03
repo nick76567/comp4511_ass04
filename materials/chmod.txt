@@ -1,0 +1,5 @@
+1. chmod(//octal number);
+2. strtoul(char init, char **remaining_part, base);
+	change the string number to integer with base
+	only work when start with number, otherwise 0
+	remaining_part can be NULL
