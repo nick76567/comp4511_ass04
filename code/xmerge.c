@@ -9,6 +9,7 @@
 #include <linux/buffer_head.h>
 
 #define FILE_NAME_SIZE		32
+#define BUF_SIZE			1024
 
 struct xmerge_param{
 	__user const char *outfile;
@@ -19,70 +20,82 @@ struct xmerge_param{
 	__user int *ofile_count;
 };
 
-long file_read_write(int in_fd, int out_fd){
-	char buffer;
-	int read_res = -1 , total_byte = 0;
-	if(in_fd < 0 || out_fd < 0){
-		printk(KERN_INFO "Error in file open\n");
-		return -1;
+long f_open(__user const char *f_name, int oflags, mode_t mode){
+	long cp_res, fd;
+	char name[FILE_NAME_SIZE];
+
+	if((cp_res = copy_from_user(name, f_name, FILE_NAME_SIZE)) < 0){
+		printk(KERN_INFO "Error in copy_from_user %ld\n", cp_res);
+		return cp_res;
 	}
 
-	while(1){
-		if((read_res = sys_read(in_fd, &buffer, 1)) < 0) return -1;
-		if(sys_write(out_fd, &buffer, 1) < 0) return -1;
-		if(read_res == 0) break;
-		total_byte++;
+	if((fd = sys_open(name, oflags, mode)) < 0){
+		printk(KERN_INFO "Error in sys_open %ld\n", fd);
+		return fd;
 	}
-	
-	return total_byte;
+
+	return fd;
 }
 
-long map_file_read_write(struct xmerge_param *ps){
-	char infile[FILE_NAME_SIZE], outfile[FILE_NAME_SIZE];
-	int rw_res = 0, total_byte = 0, ofile_count = 0, in_fd, out_fd, i;
-	
-	if(copy_from_user(outfile, ps->outfile, FILE_NAME_SIZE)){
-		printk(KERN_INFO "Errpr copy from user outfile\n");
-		return -EFAULT;
-	}
 
-	out_fd = sys_open(outfile, O_APPEND | O_WRONLY, 0);
-	if(out_fd < 0) {
-		printk(KERN_INFO "Error in open outfile\n");
-		return -1;
-	}
+long f_read_write(int in_fd, int out_fd){
+	char buf[BUF_SIZE];
+	long r_bytes, w_bytes, total_bytes = 0;
+
+	do{
+		if((r_bytes = sys_read(in_fd, buf, BUF_SIZE)) < 0){
+			printk(KERN_INFO "Error in sys_read %ld\n", r_bytes);
+			return r_bytes;
+		}
+
+		if((w_bytes = sys_write(out_fd, buf, r_bytes)) < 0){
+			printk(KERN_INFO "Error in sys_write %ld\n", w_bytes);
+			return w_bytes;
+		}
+
+		//if r_bytes != w_bytes --> clear file
+		//if error --> clear file
+		total_bytes += w_bytes;
+	}while(r_bytes == BUF_SIZE);
+	
+	return total_bytes;
+}
+
+
+long map_f_read_write(struct xmerge_param *ps){
+	long i, rw_bytes, res, total_bytes = 0;
+	long in_fd, out_fd, ofile_count = 0;
+
+	if((out_fd = f_open(ps->outfile, ps->oflags | O_WRONLY, ps->mode)) < 0)
+		return out_fd;
 
 	for(i = 0; i < ps->infile_count; i++){
-		if(copy_from_user(infile, ps->infiles[i], FILE_NAME_SIZE)){
-		printk(KERN_INFO "Error copy infile %d\n", i);
-		return -EFAULT;
-	}
-		in_fd = sys_open(infile, O_RDONLY, 0);
-		rw_res = file_read_write(in_fd, out_fd);
-		ofile_count++;
-		sys_close(in_fd);
 
-		if(rw_res < 0){
-			printk(KERN_INFO "Error after rw %d\n", i);
-			return -1;
-		}else{
-			total_byte += rw_res;
-		}	
-		
+		if((in_fd = f_open(ps->infiles[i], O_RDONLY, 0)) < 0)
+			return in_fd;
+
+		if((rw_bytes = f_read_write(in_fd, out_fd)) < 0)
+			return rw_bytes;
+
+		sys_close(in_fd);
+		ofile_count++;
+		total_bytes += rw_bytes;
 	}
+
+	if((res = put_user(ofile_count, ps->ofile_count)) < 0){
+		printk(KERN_INFO "Error in put_user %ld\n", res);
+		return res;
+	}
+
 	sys_close(out_fd);
-	if(put_user(ofile_count, ps->ofile_count)){
-		printk(KERN_INFO "Error in put user\n");
-		return -1;
-	}
-	
-	return total_byte;
-	
+	return total_bytes;
 }
+
+
 
 asmlinkage long sys_xmerge(void *args, size_t argslen){
 	struct xmerge_param xmerge;
-	int res;	
+	long res;	
 	mm_segment_t old_fs;
 
 
@@ -91,19 +104,16 @@ asmlinkage long sys_xmerge(void *args, size_t argslen){
 		return -EFAULT;
 	}
 
-
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);	
 
-	res = map_file_read_write(&xmerge);
+	res = map_f_read_write(&xmerge);
 		
 	set_fs(old_fs);	
 
 	if(res < 0){
-		printk(KERN_INFO "Error after map function\n");
-		return -1;
-	}else{
-		return res;
+		printk(KERN_INFO "Error after map function %ld\n", res);
+		return -res;
 	}
-	
+	return res;
 }

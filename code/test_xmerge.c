@@ -52,7 +52,7 @@ int parsing_flags(char **argv, Flag *flag){ /*return postion of outfile*/
 			flag->hflag = 1;
 		}else if(argv[i][1] == 'm'){
 			strcpy(flag->mode, argv[++i]);
-		}else if(argv[i][1] == 'a' || argv[i][1] == 'c' || argv[i][1] == 't' || argv[i][1] == 'e'){
+		}else{
 			strcat(flag->oflags, &argv[i][1]);
 		}
 
@@ -74,6 +74,8 @@ int oflags_handler(char *flags_arg){
 			oflags |= O_TRUNC;
 		}else if(flags_arg[i] == 'e'){
 			oflags |= O_EXCL;
+		}else{
+			return -1;
 		}
 
 		i++;
@@ -118,17 +120,17 @@ int main(int argc, char ** argv) {
 	}
 
 	if(flag.hflag == 1) printf("Usage:  ./test_xmerge [flags] outfile infile infile2 ...\n");
-	
-
+		
+    
     res = syscall(__NR_xmerge, &ps, sizeof(struct xmerge_param));
-    if (res >= 0)
+    if (*ps.ofile_count == ps.infile_count)
     {
         printf("In total, %d files have been successfully merged!\n",
                *(ps.ofile_count));
         printf("The total read size: %ld bytes.\n", res);
     } 
 	else {
-		/* Based on the errorno, print out appropriate error message */
+		printf("res: %ld\n", -res);
 	}
     //free(ps.infiles);
 	
