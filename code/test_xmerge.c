@@ -9,11 +9,6 @@
 #include <string.h>
 #include <errno.h>
 
-#define E_F_NOT_EXIST			2
-#define E_PERM_D				13
-#define	E_BAD_ADDR				14
-#define	E_F_EXIST				17
-#define E_INV_AUG				22
 /* To make grading easier, we use the same syscall ID */
 #define __NR_xmerge 355
 struct xmerge_param {
@@ -31,7 +26,7 @@ typedef struct Flag{
 	int hflag;
 } Flag;
 
-/* not for assignment */
+/* not for assignment 
 void print_xmerge(struct xmerge_param *ps){
 	printf("outfile %s\n", ps->outfile);
 	int i;
@@ -40,6 +35,7 @@ void print_xmerge(struct xmerge_param *ps){
 	printf("oflags %d\n", ps->oflags);
 	printf("Mode %d\n", ps->mode);
 }
+*/
 
 void Flags_constructor(Flag *flag){
 	int i;
@@ -127,11 +123,7 @@ int main(int argc, char ** argv) {
     long res;
     int files_read, outfile_postion;
     struct xmerge_param ps;	
-/*
-    printf("argc = %d\n", argc);
-    int i;
-    for(i = 0; i < argc; i++) printf("argv[%d]: %s\n", i, argv[i]);
-*/
+
 	/* TODO: Parse the argv here... 
 	   Format:	   
 	     - Usage: ./test_xmerge [flags] outfile infile infile2....	   
@@ -173,7 +165,7 @@ int main(int argc, char ** argv) {
 			printf("Error: terminated!.\n");
 		}
 		
-		printf("res: %ld\n", -res);
+		//printf("res: %ld\n", -res);
 	}
 	
     return 0;

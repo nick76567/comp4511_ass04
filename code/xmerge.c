@@ -60,8 +60,6 @@ long f_read_write(int in_fd, int out_fd){
 			return w_bytes;
 		}
 
-		//if r_bytes != w_bytes --> clear file
-		//if error --> clear file
 		total_bytes += w_bytes;
 	}while(r_bytes == BUF_SIZE);
 	
