@@ -26,17 +26,6 @@ typedef struct Flag{
 	int hflag;
 } Flag;
 
-/* not for assignment 
-void print_xmerge(struct xmerge_param *ps){
-	printf("outfile %s\n", ps->outfile);
-	int i;
-	for(i = 0; i < ps->infile_count; i++) printf(" Infile name %s\n", ps->infiles[i]);
-	printf("infile_count %d\n", ps->infile_count);
-	printf("oflags %d\n", ps->oflags);
-	printf("Mode %d\n", ps->mode);
-}
-*/
-
 void Flags_constructor(Flag *flag){
 	int i;
 	for(i = 0; i < 8; i++){
@@ -46,9 +35,12 @@ void Flags_constructor(Flag *flag){
 	flag->hflag = 0;
 }
 
-int parsing_flags(char **argv, Flag *flag){ /*return postion of outfile*/
-	int i = 1;
-	do{
+int parsing_flags(int argc, char **argv, Flag *flag){ /*return postion of outfile*/
+	int i;
+	
+	for(i = 1; i < argc; i++){
+		if(argv[i][0] != '-') return i;
+		
 		if(argv[i][1] == 'h'){
 			flag->hflag = 1;
 		}else if(argv[i][1] == 'm'){
@@ -57,9 +49,7 @@ int parsing_flags(char **argv, Flag *flag){ /*return postion of outfile*/
 			strcat(flag->oflags, &argv[i][1]);
 		}
 
-		i++;
-
-	}while(argv[i][0] == '-');
+	}
 
 	return i;
 }
@@ -130,20 +120,20 @@ int main(int argc, char ** argv) {
 	     - After parsing, you should update ps.[attributeName]
 	*/ 
 	Flag flag;
-	Flags_constructor(&flag);
+	Flags_constructor(&flag);	
+	outfile_postion = parsing_flags(argc, argv, &flag);
+	xmerge_param_constructor(&ps, argc, outfile_postion, &files_read, argv, &flag);
 
-	if(argc >= 4){	
-	    outfile_postion = parsing_flags(argv, &flag);
-	    xmerge_param_constructor(&ps, argc, outfile_postion, &files_read, argv, &flag);
-	}else{
-		printf("Too few arguments\n");
-		exit(0);
+	if(flag.hflag == 1){
+		printf("Usage:  ./test_xmerge [flags] outfile infile infile2 ...\n");
+		return 0;
+	}else if(argc < 4){
+		printf("Error: Too few arguments");
+		return 0;
 	}
-
-	if(flag.hflag == 1) printf("Usage:  ./test_xmerge [flags] outfile infile infile2 ...\n");
-		
     
     res = syscall(__NR_xmerge, &ps, sizeof(struct xmerge_param));
+	
     if (*ps.ofile_count == ps.infile_count)
     {
         printf("In total, %d files have been successfully merged!\n",
@@ -164,8 +154,7 @@ int main(int argc, char ** argv) {
 		}else{
 			printf("Error: terminated!.\n");
 		}
-		
-		//printf("res: %ld\n", -res);
+
 	}
 	
     return 0;
