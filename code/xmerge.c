@@ -11,6 +11,7 @@
 #define FILE_NAME_SIZE		32
 #define BUF_SIZE			1024
 
+
 struct xmerge_param{
 	__user const char *outfile;
 	__user const char **infiles;
@@ -19,6 +20,12 @@ struct xmerge_param{
 	mode_t mode;
 	__user int *ofile_count;
 };
+
+long xmerge_param_check(struct xmerge_param *ps){
+	if(ps->infiles == NULL) return -ENOENT;
+	if(ps->oflags == -1 || ps->mode == 1) return -EINVAL;
+	return 0;
+}
 
 long f_open(__user const char *f_name, int oflags, mode_t mode){
 	long cp_res, fd;
@@ -53,8 +60,6 @@ long f_read_write(int in_fd, int out_fd){
 			return w_bytes;
 		}
 
-		//if r_bytes != w_bytes --> clear file
-		//if error --> clear file
 		total_bytes += w_bytes;
 	}while(r_bytes == BUF_SIZE);
 	
@@ -103,6 +108,8 @@ asmlinkage long sys_xmerge(void *args, size_t argslen){
 		printk(KERN_INFO "Error copy from user struct\n");
 		return -EFAULT;
 	}
+	
+	if((res = xmerge_param_check(&xmerge)) != 0) return -res;
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);	

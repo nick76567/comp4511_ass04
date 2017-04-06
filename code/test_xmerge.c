@@ -26,7 +26,7 @@ typedef struct Flag{
 	int hflag;
 } Flag;
 
-/* not for assignment */
+/* not for assignment 
 void print_xmerge(struct xmerge_param *ps){
 	printf("outfile %s\n", ps->outfile);
 	int i;
@@ -35,6 +35,7 @@ void print_xmerge(struct xmerge_param *ps){
 	printf("oflags %d\n", ps->oflags);
 	printf("Mode %d\n", ps->mode);
 }
+*/
 
 void Flags_constructor(Flag *flag){
 	int i;
@@ -63,6 +64,16 @@ int parsing_flags(char **argv, Flag *flag){ /*return postion of outfile*/
 	return i;
 }
 
+char **infiles_handler(char **infiles){
+	int i = 0;
+	
+	do{
+		if(access(infiles[i++], F_OK) == -1) return NULL;
+	}while(infiles[i] != NULL);
+	
+	return infiles;
+}
+
 int oflags_handler(char *flags_arg){
 	int i = 0, oflags = 0;
 	do{
@@ -84,13 +95,27 @@ int oflags_handler(char *flags_arg){
 	return oflags;
 }
 
+int mode_handler(char *mode){
+	char accept_mode_value[] = "04567";
+	int i, j;
+	
+	if(mode[0] == '\0') return (S_IRUSR | S_IWUSR);
+	for(i = 0; i < 3; i++){
+		for(j = 0; j < 5; j++){
+			if(mode[i] == accept_mode_value[j]) break;
+		}
+		if(j == 5) return 1;
+	}
+	return strtoul(mode, NULL, 8);
+}
+
 void  xmerge_param_constructor(struct xmerge_param *ps, int argc, int outfile_postion,
 						int *ofile_count, char **argv, Flag *flag){ 
 	ps->outfile = argv[outfile_postion];
-	ps->infiles = &argv[outfile_postion + 1];
+	ps->infiles = infiles_handler(&argv[outfile_postion + 1]);
 	ps->infile_count = argc - (outfile_postion + 1);
 	ps->oflags = oflags_handler(flag->oflags);
-	ps->mode = (flag->mode[0] == '\0') ? S_IRUSR | S_IWUSR : strtoul(flag->mode, NULL, 8); /* may be deleted */
+	ps->mode = mode_handler(flag->mode);
 	ps->ofile_count = ofile_count;
 }
 
@@ -98,11 +123,7 @@ int main(int argc, char ** argv) {
     long res;
     int files_read, outfile_postion;
     struct xmerge_param ps;	
-/*
-    printf("argc = %d\n", argc);
-    int i;
-    for(i = 0; i < argc; i++) printf("argv[%d]: %s\n", i, argv[i]);
-*/
+
 	/* TODO: Parse the argv here... 
 	   Format:	   
 	     - Usage: ./test_xmerge [flags] outfile infile infile2....	   
@@ -111,7 +132,7 @@ int main(int argc, char ** argv) {
 	Flag flag;
 	Flags_constructor(&flag);
 
-	if(argc > 4){	
+	if(argc >= 4){	
 	    outfile_postion = parsing_flags(argv, &flag);
 	    xmerge_param_constructor(&ps, argc, outfile_postion, &files_read, argv, &flag);
 	}else{
@@ -130,9 +151,22 @@ int main(int argc, char ** argv) {
         printf("The total read size: %ld bytes.\n", res);
     } 
 	else {
-		printf("res: %ld\n", -res);
+		if(res == ENOENT){
+			printf("Error: No such file.\n");
+		}else if(res == EACCES){
+			printf("Error: Permission denied.\n");
+		}else if(res == EFAULT){
+			printf("Error: Bad address.\n");
+		}else if(res == EEXIST){
+			printf("Error: File exists.\n");
+		}else if(res == EINVAL){
+			printf("Error: Invalid argument.\n");
+		}else{
+			printf("Error: terminated!.\n");
+		}
+		
+		//printf("res: %ld\n", -res);
 	}
-    //free(ps.infiles);
 	
     return 0;
 }
