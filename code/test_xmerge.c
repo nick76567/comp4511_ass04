@@ -54,15 +54,6 @@ int parsing_flags(int argc, char **argv, Flag *flag){ /*return postion of outfil
 	return i;
 }
 
-char **infiles_handler(char **infiles){
-	int i = 0;
-	
-	do{
-		if(access(infiles[i++], F_OK) == -1) return NULL;
-	}while(infiles[i] != NULL);
-	
-	return infiles;
-}
 
 int oflags_handler(char *flags_arg){
 	int i = 0, oflags = 0;
@@ -85,27 +76,40 @@ int oflags_handler(char *flags_arg){
 	return oflags;
 }
 
-int mode_handler(char *mode){
+int mode_check(char *mode){
 	char accept_mode_value[] = "04567";
 	int i, j;
 	
-	if(mode[0] == '\0') return (S_IRUSR | S_IWUSR);
 	for(i = 0; i < 3; i++){
 		for(j = 0; j < 5; j++){
 			if(mode[i] == accept_mode_value[j]) break;
 		}
 		if(j == 5) return 1;
 	}
+	
+	return 0;
+}
+
+int mode_handler(char *of_name, char *mode){
+	struct stat f_stat;
+	
+	if(!access(of_name, F_OK) && mode[0] == '\0'){
+		if(!stat(of_name, &f_stat))
+			return f_stat.st_mode;
+	}	
+	if(mode[0] == '\0') return (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+	if(mode_check(mode)) return 1;
+	
 	return strtoul(mode, NULL, 8);
 }
 
 void  xmerge_param_constructor(struct xmerge_param *ps, int argc, int outfile_postion,
 						int *ofile_count, char **argv, Flag *flag){ 
 	ps->outfile = argv[outfile_postion];
-	ps->infiles = infiles_handler(&argv[outfile_postion + 1]);
+	ps->infiles = &argv[outfile_postion + 1];
 	ps->infile_count = argc - (outfile_postion + 1);
 	ps->oflags = oflags_handler(flag->oflags);
-	ps->mode = mode_handler(flag->mode);
+	ps->mode = mode_handler(argv[outfile_postion], flag->mode);
 	ps->ofile_count = ofile_count;
 }
 
