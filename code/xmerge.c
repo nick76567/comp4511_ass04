@@ -21,14 +21,6 @@ struct xmerge_param{
 };
 
 
-long xmerge_param_check(struct xmerge_param *ps){
-	if(ps->infiles == NULL) return -ENOENT;
-	if(ps->oflags == -1 || ps->mode == 1) return -EINVAL;
-	return 0;
-}
-
-
-
 long f_open(__user const char *f_name, int oflags, mode_t mode){
 	long cp_res, chmod_res, fd;
 	char name[FILE_NAME_SIZE];
@@ -78,11 +70,11 @@ long map_f_read_write(struct xmerge_param *ps){
 	long  out_fd, ofile_count = 0;
 	long i, rw_bytes, in_fd_res, res, total_bytes = 0;
 	
-	if((out_fd = f_open(ps->outfile, ps->oflags | O_WRONLY, ps->mode)) < 0)
-		return out_fd;
-	
 	if((in_fd_res = infiles_permission_check(ps->infiles, in_fds, INFILE_COUNT)) < 0)
 		return in_fd_res;
+	
+	if((out_fd = f_open(ps->outfile, ps->oflags | O_WRONLY, ps->mode)) < 0)
+		return out_fd;
 
 	for(i = 0; i < ps->infile_count; i++){
 
@@ -103,20 +95,21 @@ long map_f_read_write(struct xmerge_param *ps){
 
 
 asmlinkage long sys_xmerge(void *args, size_t argslen){
-	struct xmerge_param xmerge;
+	struct xmerge_param ps;
 	long res;	
 	mm_segment_t old_fs;
 
 
-	if(copy_from_user(&xmerge, args, argslen))
-		return -EFAULT;
+	if(copy_from_user(&ps, args, argslen))
+		return EFAULT;
 	
-	if((res = xmerge_param_check(&xmerge)) != 0) return -res;
+	if(ps.oflags == -1 || ps.mode == 1)
+		return EINVAL;
 
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);	
 
-	res = map_f_read_write(&xmerge);
+	res = map_f_read_write(&ps);
 		
 	set_fs(old_fs);	
 
