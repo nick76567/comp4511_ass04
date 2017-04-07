@@ -28,6 +28,7 @@ long xmerge_param_check(struct xmerge_param *ps){
 }
 
 
+
 long f_open(__user const char *f_name, int oflags, mode_t mode){
 	long cp_res, chmod_res, fd;
 	char name[FILE_NAME_SIZE];
@@ -44,6 +45,14 @@ long f_open(__user const char *f_name, int oflags, mode_t mode){
 	return fd;
 }
 
+long infiles_permission_check(__user const char **infiles, int *fds, const int infile_count){
+	int fd, i;
+	for(i = 0; i < infile_count; i++){
+		if((fd = f_open(infiles[i], O_RDONLY, 0)) < 0) return fd;
+		fds[i] = fd;
+	}
+	return 0;
+}
 
 long f_read_write(int in_fd, int out_fd){
 	char buf[BUF_SIZE];
@@ -64,21 +73,23 @@ long f_read_write(int in_fd, int out_fd){
 
 
 long map_f_read_write(struct xmerge_param *ps){
-	long i, rw_bytes, res, total_bytes = 0;
-	long in_fd, out_fd, ofile_count = 0;
-
+	const int INFILE_COUNT = ps->infile_count;
+	int in_fds[INFILE_COUNT];
+	long  out_fd, ofile_count = 0;
+	long i, rw_bytes, in_fd_res, res, total_bytes = 0;
+	
 	if((out_fd = f_open(ps->outfile, ps->oflags | O_WRONLY, ps->mode)) < 0)
 		return out_fd;
+	
+	if((in_fd_res = infiles_permission_check(ps->infiles, in_fds, INFILE_COUNT)) < 0)
+		return in_fd_res;
 
 	for(i = 0; i < ps->infile_count; i++){
 
-		if((in_fd = f_open(ps->infiles[i], O_RDONLY, 0)) < 0)
-			return in_fd;
-
-		if((rw_bytes = f_read_write(in_fd, out_fd)) < 0)
+		if((rw_bytes = f_read_write(in_fds[i], out_fd)) < 0)
 			return rw_bytes;
 
-		sys_close(in_fd);
+		sys_close(in_fds[i]);
 		ofile_count++;
 		total_bytes += rw_bytes;
 	}
